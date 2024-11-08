@@ -138,6 +138,38 @@ class LoanEligibilityCheckerTest {
     }
 
     @Test
+    void testMultipleCreditsWithOverdueTrue() {
+        String clientJson = """
+            {
+                "firstName": "Иван",
+                "birthDate": "1980-01-01T00:00:00.000Z",
+                "passport": {
+                    "issuedAt": "2021-01-01T00:00:00.000Z"
+                },
+                "creditHistory": [
+                    {
+                        "type": "Кредит наличными",
+                        "currentOverdueDebt": 0,
+                        "numberOfDaysOnOverdue": 20
+                    },
+                    {
+                        "type": "Кредит наличными",
+                        "currentOverdueDebt": 0,
+                        "numberOfDaysOnOverdue": 14
+                    },
+                    {
+                        "type": "Кредит наличными",
+                        "currentOverdueDebt": 0,
+                        "numberOfDaysOnOverdue": 14
+                    }
+                ]
+            }
+        """;
+        boolean result = LoanEligibilityChecker.checkLoanEligibility(clientJson);
+        assertTrue("Client should be denied due to multiple credits with overdue debt over 15 days", result);
+    }
+
+    @Test
     void testClientWithValidCreditHistory() {
         String clientJson = """
             {
