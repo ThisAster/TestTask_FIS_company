@@ -16,4 +16,5 @@ public class Credit {
     private double currentOverdueDebt;
     private int numberOfDaysOnOverdue;
     private double remainingDebt;
+    private String creditId;
 }

@@ -12,6 +12,7 @@ public class Client {
     private String middleName;
     private String lastName;
     private String birthDate;
+    private String citzenship;
     private Passport passport;
     private List<Credit> creditHistory;
 }
