@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 public class LoanEligibilityChecker {
+
     public static boolean checkLoanEligibility(String clientJson) {
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -14,11 +15,19 @@ public class LoanEligibilityChecker {
 
             LocalDate birthDate = LocalDate.parse(client.getBirthDate(), DateTimeFormatter.ISO_DATE_TIME);
             int age = today.getYear() - birthDate.getYear();
-            if (age < 20) return false;
+            if (age < 20) {
+                return false;
+            }
+
 
             LocalDate passportIssuedAt = LocalDate.parse(client.getPassport().getIssuedAt(), DateTimeFormatter.ISO_DATE_TIME);
-            if (age > 20 && passportIssuedAt.isBefore(birthDate.plusYears(20))) return false;
-            if (age > 45 && passportIssuedAt.isBefore(birthDate.plusYears(45))) return false;
+            if (age > 20 && passportIssuedAt.isBefore(birthDate.plusYears(20))) {
+                return false;
+            }
+            if (age > 45 && passportIssuedAt.isBefore(birthDate.plusYears(45))) {
+                return false;
+            }
+
 
             for (Credit credit : client.getCreditHistory()) {
                 if (credit.getType().equals("Кредитная карта")) {
@@ -26,85 +35,109 @@ public class LoanEligibilityChecker {
                         return false;
                     }
                 } else {
-                    if (credit.getCurrentOverdueDebt() > 0 || credit.getNumberOfDaysOnOverdue() > 60 || credit.getNumberOfDaysOnOverdue() > 15) {
+                    if (credit.getCurrentOverdueDebt() > 0 || credit.getNumberOfDaysOnOverdue() > 60) {
+                        return false;
+                    }
+
+                    int overdueCount = 0;
+                    for (Credit c : client.getCreditHistory()) {
+                        if (!c.getType().equals("Кредитная карта") && c.getNumberOfDaysOnOverdue() > 15) {
+                            overdueCount++;
+                        }
+                    }
+                    if (overdueCount > 2) {
                         return false;
                     }
                 }
             }
             return true;
         } catch (Exception e) {
-
+            e.printStackTrace();
             return false;
         }
     }
 
     public static void main(String[] args) {
-        String clientJsonFalse = """
+        // Пример 1: Клиент моложе 20 лет (проверка не пройдена)
+        String clientJsonUnder20 = """
         {
-            "firstName": "Иван",
-            "middleName": "Иванович",
-            "lastName": "Иванов",
-            "birthDate": "1969-12-31T21:00:00.000Z",
+            "firstName": "Алексей",
+            "middleName": "Петрович",
+            "lastName": "Алексеев",
+            "birthDate": "2005-05-15T00:00:00.000Z",
             "passport": {
-                "series": "12 34",
+                "series": "11 22",
                 "number": "123456",
-                "issuedAt": "2023-03-11T21:00:00.000Z",
+                "issuedAt": "2023-06-01T00:00:00.000Z",
                 "issuer": "УФМС",
-                "issuerCode": "123-456"
+                "issuerCode": "111-222"
+            },
+            "creditHistory": []
+        }
+        """;
+
+        // Пример 2: Паспорт выдан до 20 лет или 45 лет (не проходит)
+        String clientJsonPassportInvalid = """
+        {
+            "firstName": "Мария",
+            "middleName": "Ивановна",
+            "lastName": "Мартынова",
+            "birthDate": "1985-01-01T00:00:00.000Z",
+            "passport": {
+                "series": "33 44",
+                "number": "654321",
+                "issuedAt": "2000-01-01T00:00:00.000Z",
+                "issuer": "УФМС",
+                "issuerCode": "444-555"
+            },
+            "creditHistory": []
+        }
+        """;
+
+        // Пример 3: Нарушения в кредитной истории (не проходит)
+        String clientJsonCreditIssue = """
+        {
+            "firstName": "Дмитрий",
+            "middleName": "Анатольевич",
+            "lastName": "Дмитриев",
+            "birthDate": "1975-01-01T00:00:00.000Z",
+            "passport": {
+                "series": "22 33",
+                "number": "987654",
+                "issuedAt": "2015-01-01T00:00:00.000Z",
+                "issuer": "УФМС",
+                "issuerCode": "333-444"
             },
             "creditHistory": [
                 {
                     "type": "Кредит наличными",
                     "currency": "RUB",
-                    "issuedAt": "2003-02-27T21:00:00.000Z",
-                    "rate": 0.13,
-                    "loanSum": 100000,
+                    "issuedAt": "2018-06-01T00:00:00.000Z",
+                    "rate": 0.15,
+                    "loanSum": 50000,
                     "term": 12,
-                    "repaidAt": "2004-02-27T21:00:00.000Z",
-                    "currentOverdueDebt": 0,
-                    "numberOfDaysOnOverdue": 0,
-                    "remainingDebt": 0
+                    "repaidAt": null,
+                    "currentOverdueDebt": 2000,
+                    "numberOfDaysOnOverdue": 40,
+                    "remainingDebt": 25000
                 },
                 {
                     "type": "Кредитная карта",
                     "currency": "RUB",
-                    "issuedAt": "2009-03-27T21:00:00.000Z",
+                    "issuedAt": "2020-05-01T00:00:00.000Z",
                     "rate": 0.24,
-                    "loanSum": 30000,
-                    "term": 3,
-                    "repaidAt": "2009-06-29T20:00:00.000Z",
-                    "currentOverdueDebt": 0,
-                    "numberOfDaysOnOverdue": 2,
-                    "remainingDebt": 0
-                },
-                {
-                    "type": "Кредит наличными",
-                    "currency": "RUB",
-                    "issuedAt": "2009-02-27T21:00:00.000Z",
-                    "rate": 0.09,
-                    "loanSum": 200000,
-                    "term": 24,
-                    "repaidAt": "2011-03-02T21:00:00.000Z",
-                    "currentOverdueDebt": 0,
-                    "numberOfDaysOnOverdue": 3,
-                    "remainingDebt": 0
-                },
-                {
-                    "type": "Кредит наличными",
-                    "currency": "RUB",
-                    "issuedAt": "2024-05-15T21:00:00.000Z",
-                    "rate": 0.13,
-                    "loanSum": 200000,
-                    "term": 36,
+                    "loanSum": 20000,
+                    "term": 6,
                     "repaidAt": null,
-                    "currentOverdueDebt": 10379,
-                    "numberOfDaysOnOverdue": 15,
-                    "remainingDebt": 110000
+                    "currentOverdueDebt": 1000,
+                    "numberOfDaysOnOverdue": 35, \s
+                    "remainingDebt": 15000
                 }
             ]
         }
-        """;
+       \s""";
 
+        // Пример 4: Все проверки пройдены
         String clientJsonTrue = """
         {
             "firstName": "Иван",
@@ -147,11 +180,16 @@ public class LoanEligibilityChecker {
         }
         """;
 
+        boolean resultUnder20 = checkLoanEligibility(clientJsonUnder20);
+        System.out.println("Клиент моложе 20 лет: " + resultUnder20);
 
-        boolean resultTrue = checkLoanEligibility(clientJsonTrue);
-        System.out.println("Клиент прошел все проверки: " + resultTrue);
+        boolean resultPassportInvalid = checkLoanEligibility(clientJsonPassportInvalid);
+        System.out.println("Паспорт выдан до 20 или 45 лет: " + resultPassportInvalid);
 
-        boolean resultFalse = checkLoanEligibility(clientJsonFalse);
-        System.out.println("Клиент прошел все проверки: " + resultFalse);
+        boolean resultCreditIssue = checkLoanEligibility(clientJsonCreditIssue);
+        System.out.println("Нарушения в кредитной истории: " + resultCreditIssue);
+
+        boolean resultValid1 = checkLoanEligibility(clientJsonTrue);
+        System.out.println("Клиент прошел все проверки: " + resultValid1);
     }
 }
