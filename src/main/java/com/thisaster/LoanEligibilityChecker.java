@@ -12,7 +12,7 @@ public class LoanEligibilityChecker {
             ObjectMapper mapper = new ObjectMapper();
             Client client = mapper.readValue(clientJson, Client.class);
             LocalDate today = LocalDate.now();
-
+            int overdueCount = 0;
             LocalDate birthDate = LocalDate.parse(client.getBirthDate(), DateTimeFormatter.ISO_DATE_TIME);
             int age = today.getYear() - birthDate.getYear();
             if (age < 20) {
@@ -38,12 +38,8 @@ public class LoanEligibilityChecker {
                     if (credit.getCurrentOverdueDebt() > 0 || credit.getNumberOfDaysOnOverdue() > 60) {
                         return false;
                     }
-
-                    int overdueCount = 0;
-                    for (Credit c : client.getCreditHistory()) {
-                        if (!c.getType().equals("Кредитная карта") && c.getNumberOfDaysOnOverdue() > 15) {
-                            overdueCount++;
-                        }
+                    if (credit.getNumberOfDaysOnOverdue() > 15) {
+                        overdueCount++;
                     }
                     if (overdueCount > 2) {
                         return false;
